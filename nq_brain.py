@@ -28,16 +28,22 @@ engine = None
 session = None
 
 try:
-    polygon_client = RESTClient(POLYGON_API_KEY)
-    logging.info("Successfully connected to Polygon.io API.")
+    if POLYGON_API_KEY:
+        polygon_client = RESTClient(POLYGON_API_KEY)
+        logging.info("Successfully connected to Polygon.io API.")
+    else:
+        logging.error("POLYGON_API_KEY environment variable not found.")
 except Exception as e:
     logging.error(f"Failed to connect to Polygon.io API: {e}")
 
 try:
-    engine = create_engine(DATABASE_URL)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    logging.info("Successfully connected to the database.")
+    if DATABASE_URL:
+        engine = create_engine(DATABASE_URL)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        logging.info("Successfully connected to the database.")
+    else:
+        logging.error("DATABASE_URL environment variable not found.")
 except Exception as e:
     logging.error(f"Failed to connect to the database: {e}")
 
@@ -83,31 +89,13 @@ def log_trade(signal):
 
 # --- 4. THE MAIN ENGINE LOOP ---
 def run_brain():
-    logging.info("NQ Smarter Brain V1.0 is now live and monitoring.")
+    logging.info("NQ Smarter Brain V1.0 is attempting to start...")
     
     while True:
         if not polygon_client or not engine:
-            logging.error("A critical connection (API or DB) is missing. Retrying in 5 minutes.")
-            time.sleep(300)
-            # We will now attempt to reconnect in the next loop iteration.
-            # This is more robust than just exiting.
-            global polygon_client, engine, session
-            try:
-                polygon_client = RESTClient(POLYGON_API_KEY)
-                logging.info("Re-connected to Polygon.io API.")
-            except Exception as e:
-                logging.error(f"Failed to re-connect to Polygon.io API: {e}")
-                polygon_client = None
-
-            try:
-                engine = create_engine(DATABASE_URL)
-                Session = sessionmaker(bind=engine)
-                session = Session()
-                logging.info("Re-connected to the database.")
-            except Exception as e:
-                logging.error(f"Failed to re-connect to the database: {e}")
-                engine = None
-            continue
+            logging.error("A critical connection (API or DB) is missing. Check environment variables. Retrying in 60 seconds.")
+            time.sleep(60)
+            continue # Try the loop again after waiting.
 
         now_utc = datetime.datetime.utcnow()
         is_market_hours = (now_utc.weekday() < 5) and (datetime.time(7, 0) <= now_utc.time() <= datetime.time(20, 0))
